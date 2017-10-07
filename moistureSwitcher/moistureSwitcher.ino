@@ -17,14 +17,12 @@
 
 DHT dht(DHT22_PIN, DHTTYPE);
 
-//mode select 
-//mode 0 == dht22 check mode
-//mode 1 == always on
-//mode 2 == always off
-byte mode = 0;
-
+//disabled bool
+bool disabled = false;
 //check byte, when 0 it checks dht22
 byte check = 0;
+//timer bit when disabled expires
+unsigned int disabledTimer = 0;
 
 #define HUM_MEASURES 10
 float hum[HUM_MEASURES] = { 0 };
@@ -84,36 +82,30 @@ void loop() {
   boolean state_recv = digitalRead(RECV_PIN);
   if (state_recv)
   {
-    if (mode == 2) 
-    {
-      mode = 0;
+    disabled = !disabled;
+    if (disabled) {
+      digitalWrite(RELAY_PIN, LOW);
     }
-    else 
-    {
-      ++mode;
-    }
-    switch (mode) 
-    {
-      case 0:
-        digitalWrite(RELAY_PIN, LOW);
-        break;
-      case 1:
-        digitalWrite(RELAY_PIN, HIGH);
-        break;
-      case 2:
-        digitalWrite(RELAY_PIN, LOW);
-        break;
-    }
-    for (byte i = 0; i < mode + 1; i++)
+    digitalWrite(LEDR_PIN, LOW);
+    delay(300);
+    byte maxBlink = (disabled ? 2 : 1);
+    for (byte i = 0; i < maxBlink; i++)
     {
       digitalWrite(LEDR_PIN, HIGH);
-      delay(500);
+      delay(300);
       digitalWrite(LEDR_PIN, LOW);
-      delay(500);
+      delay(300);
     }
   }
-  
-  if (check == 0 && mode == 0)
+  if (disabled) {
+    ++disabledTimer;
+    //check if timer expired after 1 hour
+    if (disabledTimer > (1 * 60 * 60 * 10)) {
+      disabledTimer = 0;
+      disabled = false;
+    }
+  }
+  if (check == 0 && !disabled)
   {
     int pot1 = analogRead(POTM1_PIN);
     int pot2 = analogRead(POTM2_PIN);
@@ -152,8 +144,8 @@ void loop() {
       }
     }
 #ifdef DEBUG 
-    Serial.print("mode: ");
-    Serial.println(mode);
+    Serial.print("disabled: ");
+    Serial.println(disabled);
     Serial.print("Pot 1 (START IF HIGHER THAN): ");
     Serial.println(pot1);
     Serial.print("Pot 2 (STOP IF LOWER THAN): ");
