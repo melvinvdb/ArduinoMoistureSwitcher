@@ -1,0 +1,2 @@
+(E:FF, H:CA, L:DF)
+avrdude -c usbasp -p m8 -U lfuse:w:0xDF:m -U hfuse:w:0xCA:m
